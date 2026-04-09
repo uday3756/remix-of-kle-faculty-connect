@@ -7,6 +7,7 @@ import StepSemester from "@/components/steps/StepSemester";
 import StepSubjects from "@/components/steps/StepSubjects";
 import StepSummary from "@/components/steps/StepSummary";
 import StepHistory from "@/components/steps/StepHistory";
+import StepRecords from "@/components/steps/StepRecords";
 
 function StepContent() {
   const { currentStep } = useAppState();
@@ -17,6 +18,7 @@ function StepContent() {
     case 4: return <StepSubjects />;
     case 5: return <StepSummary />;
     case 6: return <StepHistory />;
+    case 7: return <StepRecords />;
     default: return <StepRoleFaculty />;
   }
 }
