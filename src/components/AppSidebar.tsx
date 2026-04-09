@@ -1,5 +1,5 @@
 import { useAppState } from "@/context/AppContext";
-import { CheckCircle2, Circle, History, LogOut } from "lucide-react";
+import { CheckCircle2, Circle, History, Database, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +73,18 @@ export default function AppSidebar() {
         >
           <History className="h-5 w-5 shrink-0" />
           <span>Exam History</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentStep(7)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
+            currentStep === 7 && "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-primary))] font-semibold",
+            currentStep !== 7 && "hover:bg-[hsl(var(--sidebar-accent))] opacity-80 hover:opacity-100"
+          )}
+        >
+          <Database className="h-5 w-5 shrink-0" />
+          <span>Records (DB)</span>
         </button>
       </nav>
 
