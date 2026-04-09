@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      remuneration_records: {
+        Row: {
+          account_no: string | null
+          bank_name: string | null
+          course_code: string | null
+          course_name: string | null
+          created_at: string
+          department: string
+          exam_date: string | null
+          exam_session: string | null
+          id: string
+          ifsc: string | null
+          pan: string | null
+          qp_remn_per_batch: number | null
+          remn_per_batch: number | null
+          role: string
+          semester: string | null
+          sl_no: number | null
+          staff_name: string
+          total_amount: number
+          total_students_or_batches: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_no?: string | null
+          bank_name?: string | null
+          course_code?: string | null
+          course_name?: string | null
+          created_at?: string
+          department?: string
+          exam_date?: string | null
+          exam_session?: string | null
+          id?: string
+          ifsc?: string | null
+          pan?: string | null
+          qp_remn_per_batch?: number | null
+          remn_per_batch?: number | null
+          role?: string
+          semester?: string | null
+          sl_no?: number | null
+          staff_name?: string
+          total_amount?: number
+          total_students_or_batches?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_no?: string | null
+          bank_name?: string | null
+          course_code?: string | null
+          course_name?: string | null
+          created_at?: string
+          department?: string
+          exam_date?: string | null
+          exam_session?: string | null
+          id?: string
+          ifsc?: string | null
+          pan?: string | null
+          qp_remn_per_batch?: number | null
+          remn_per_batch?: number | null
+          role?: string
+          semester?: string | null
+          sl_no?: number | null
+          staff_name?: string
+          total_amount?: number
+          total_students_or_batches?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
