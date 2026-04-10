@@ -148,9 +148,8 @@ export default function StepHistory() {
       {error && <Card className="bg-destructive/10 border-destructive/30"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{filtered.length}</div><div className="text-xs text-muted-foreground">Total Records</div></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">₹{totalAmount.toLocaleString("en-IN")}</div><div className="text-xs text-muted-foreground">Total Amount</div></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{uniqueStaff}</div><div className="text-xs text-muted-foreground">Unique Staff</div></CardContent></Card>
       </div>
 

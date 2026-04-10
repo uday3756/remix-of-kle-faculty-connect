@@ -4,10 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { RoleType, ROLE_CONFIG } from "@/types/faculty";
-import { RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
+import { RefreshCw, AlertTriangle, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface DBFaculty {
   staff_name: string;
@@ -28,11 +32,19 @@ export default function StepRoleFaculty() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Add Role dialog
+  const [showAddRole, setShowAddRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+
+  // Add Faculty dialog
+  const [showAddFaculty, setShowAddFaculty] = useState(false);
+  const [newFaculty, setNewFaculty] = useState({ staff_name: "", account_no: "", pan: "", ifsc: "", bank_name: "" });
+  const [addingFaculty, setAddingFaculty] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
-      // Fetch distinct roles
       const { data: roleData, error: roleErr } = await supabase
         .from("remuneration_records")
         .select("role")
@@ -42,7 +54,6 @@ export default function StepRoleFaculty() {
       const roles = [...new Set((roleData || []).map(r => r.role))].sort();
       setDbRoles(roles);
 
-      // Fetch distinct staff
       const { data: staffData, error: staffErr } = await supabase
         .from("remuneration_records")
         .select("staff_name, role, account_no, pan, ifsc, bank_name")
@@ -50,7 +61,6 @@ export default function StepRoleFaculty() {
         .neq("role", "");
       if (staffErr) throw staffErr;
 
-      // Deduplicate by staff_name + role
       const seen = new Set<string>();
       const unique: DBFaculty[] = [];
       for (const s of staffData || []) {
@@ -75,7 +85,56 @@ export default function StepRoleFaculty() {
     return dbFaculty.filter(f => f.role === selectedRole).sort((a, b) => a.staff_name.localeCompare(b.staff_name));
   }, [dbFaculty, selectedRole]);
 
-  const roleConfig = selectedRole && ROLE_CONFIG[selectedRole as RoleType];
+  const handleAddRole = () => {
+    const trimmed = newRoleName.trim();
+    if (!trimmed) return;
+    if (dbRoles.includes(trimmed)) {
+      toast.error("Role already exists");
+      return;
+    }
+    setDbRoles(prev => [...prev, trimmed].sort());
+    setSelectedRole(trimmed as RoleType);
+    setSelectedFaculty(null);
+    setNewRoleName("");
+    setShowAddRole(false);
+    toast.success(`Role "${trimmed}" added`);
+  };
+
+  const handleAddFaculty = async () => {
+    if (!newFaculty.staff_name.trim() || !selectedRole) return;
+    setAddingFaculty(true);
+    try {
+      const { error: err } = await supabase.from("remuneration_records").insert({
+        staff_name: newFaculty.staff_name.trim(),
+        role: selectedRole,
+        account_no: newFaculty.account_no || null,
+        pan: newFaculty.pan || null,
+        ifsc: newFaculty.ifsc || null,
+        bank_name: newFaculty.bank_name || null,
+        department: "",
+        total_amount: 0,
+      });
+      if (err) throw err;
+
+      // Add to local state
+      const newEntry: DBFaculty = {
+        staff_name: newFaculty.staff_name.trim(),
+        role: selectedRole,
+        account_no: newFaculty.account_no || null,
+        pan: newFaculty.pan || null,
+        ifsc: newFaculty.ifsc || null,
+        bank_name: newFaculty.bank_name || null,
+      };
+      setDbFaculty(prev => [...prev, newEntry]);
+      setNewFaculty({ staff_name: "", account_no: "", pan: "", ifsc: "", bank_name: "" });
+      setShowAddFaculty(false);
+      toast.success(`Faculty "${newEntry.staff_name}" added under ${selectedRole}`);
+    } catch (e: any) {
+      toast.error("Failed to add: " + (e.message || "Unknown error"));
+    } finally {
+      setAddingFaculty(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -95,10 +154,15 @@ export default function StepRoleFaculty() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <label className="text-sm font-medium">Role</label>
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            <span className="ml-1">Refresh</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowAddRole(true)}>
+              <Plus className="h-3 w-3 mr-1" /> Add Role
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              <span className="ml-1">Refresh</span>
+            </Button>
+          </div>
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -132,10 +196,15 @@ export default function StepRoleFaculty() {
       {/* Faculty select */}
       {selectedRole && (
         <div className="space-y-3">
-          <label className="text-sm font-medium block">Faculty Member ({filteredFaculty.length})</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Faculty Member ({filteredFaculty.length})</label>
+            <Button variant="outline" size="sm" onClick={() => setShowAddFaculty(true)}>
+              <Plus className="h-3 w-3 mr-1" /> Add Faculty
+            </Button>
+          </div>
 
           {filteredFaculty.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No members found for "{selectedRole}".</p>
+            <p className="text-sm text-muted-foreground">No members found for "{selectedRole}". Add one using the button above.</p>
           ) : (
             <Select
               value={selectedFaculty?.name || ""}
@@ -180,6 +249,69 @@ export default function StepRoleFaculty() {
           <Button onClick={() => setCurrentStep(2)}>Next →</Button>
         </div>
       )}
+
+      {/* Add Role Dialog */}
+      <Dialog open={showAddRole} onOpenChange={setShowAddRole}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Role</DialogTitle>
+            <DialogDescription>Enter a name for the new role</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Role Name</Label>
+              <Input value={newRoleName} onChange={e => setNewRoleName(e.target.value)} placeholder="e.g. Lab Assistant" onKeyDown={e => e.key === "Enter" && handleAddRole()} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddRole(false)}>Cancel</Button>
+            <Button onClick={handleAddRole} disabled={!newRoleName.trim()}>Add Role</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Faculty Dialog */}
+      <Dialog open={showAddFaculty} onOpenChange={setShowAddFaculty}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Faculty</DialogTitle>
+            <DialogDescription>Add a new faculty member under "{selectedRole}"</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Staff Name *</Label>
+              <Input value={newFaculty.staff_name} onChange={e => setNewFaculty(f => ({ ...f, staff_name: e.target.value }))} placeholder="Full name" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Account No</Label>
+                <Input value={newFaculty.account_no} onChange={e => setNewFaculty(f => ({ ...f, account_no: e.target.value }))} placeholder="Bank account" />
+              </div>
+              <div>
+                <Label>PAN</Label>
+                <Input value={newFaculty.pan} onChange={e => setNewFaculty(f => ({ ...f, pan: e.target.value }))} placeholder="PAN number" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>IFSC</Label>
+                <Input value={newFaculty.ifsc} onChange={e => setNewFaculty(f => ({ ...f, ifsc: e.target.value }))} placeholder="IFSC code" />
+              </div>
+              <div>
+                <Label>Bank Name</Label>
+                <Input value={newFaculty.bank_name} onChange={e => setNewFaculty(f => ({ ...f, bank_name: e.target.value }))} placeholder="Bank name" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddFaculty(false)}>Cancel</Button>
+            <Button onClick={handleAddFaculty} disabled={!newFaculty.staff_name.trim() || addingFaculty}>
+              {addingFaculty ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Add Faculty
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
