@@ -1,59 +1,140 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { fetchExamLog } from "@/lib/sheets-api";
-import { exportHistoryExcel } from "@/lib/excel-export";
-import { ExamLogEntry, RoleType } from "@/types/faculty";
-import { Download, Loader2, Search, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from "xlsx";
+import { Download, Loader2, Search, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-const ROLES: RoleType[] = ["Faculty", "Instructor", "Technician", "Attender", "External"];
+interface HistoryRecord {
+  id: string;
+  staff_name: string;
+  role: string;
+  department: string;
+  exam_date: string | null;
+  semester: string | null;
+  course_code: string | null;
+  course_name: string | null;
+  total_students_or_batches: number | null;
+  total_amount: number;
+  account_no: string | null;
+  pan: string | null;
+  exam_session: string | null;
+  created_at: string;
+}
+
 const PAGE_SIZE = 20;
 
 export default function StepHistory() {
-  const [entries, setEntries] = useState<ExamLogEntry[]>([]);
+  const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [nameSearch, setNameSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("");
+  const [sessionFilter, setSessionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
+  const fetchRecords = useCallback(async () => {
     setLoading(true);
-    fetchExamLog()
-      .then(setEntries)
-      .catch(() => setError("Could not load exam history. Ensure ExamLog sheet URL is configured."))
-      .finally(() => setLoading(false));
+    setError("");
+    try {
+      // Fetch all records (paginated in batches of 1000)
+      let allData: HistoryRecord[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error: err } = await supabase
+          .from("remuneration_records")
+          .select("id, staff_name, role, department, exam_date, semester, course_code, course_name, total_students_or_batches, total_amount, account_no, pan, exam_session, created_at")
+          .order("created_at", { ascending: false })
+          .range(from, from + batchSize - 1);
+        if (err) throw err;
+        allData = [...allData, ...(data || [])];
+        if (!data || data.length < batchSize) break;
+        from += batchSize;
+      }
+      setRecords(allData);
+    } catch {
+      setError("Failed to load history from database");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const years = useMemo(() => {
-    const yrs = new Set<string>();
-    entries.forEach(e => {
-      const parts = e.examDate.split("/");
-      if (parts[2]) yrs.add(parts[2]);
-    });
-    return Array.from(yrs).sort().reverse();
-  }, [entries]);
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  const roles = useMemo(() => [...new Set(records.map(r => r.role).filter(Boolean))].sort(), [records]);
+  const departments = useMemo(() => [...new Set(records.map(r => r.department).filter(Boolean))].sort(), [records]);
+  const sessions = useMemo(() => [...new Set(records.map(r => r.exam_session).filter(Boolean))].sort(), [records]);
+
+  const parseExamDate = (dateStr: string | null): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split("/");
+    if (parts.length === 3) return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+    return new Date(dateStr);
+  };
 
   const filtered = useMemo(() => {
-    return entries.filter(e => {
-      if (yearFilter && !e.examDate.includes(yearFilter)) return false;
-      if (roleFilter && e.role !== roleFilter) return false;
-      if (nameSearch && !e.facultyName.toLowerCase().includes(nameSearch.toLowerCase())) return false;
+    return records.filter(r => {
+      if (roleFilter && r.role !== roleFilter) return false;
+      if (deptFilter && r.department !== deptFilter) return false;
+      if (sessionFilter && r.exam_session !== sessionFilter) return false;
+      if (nameSearch && !r.staff_name.toLowerCase().includes(nameSearch.toLowerCase())) return false;
+      if (dateFrom || dateTo) {
+        const d = parseExamDate(r.exam_date);
+        if (!d) return false;
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+      }
       return true;
     });
-  }, [entries, yearFilter, roleFilter, nameSearch]);
+  }, [records, roleFilter, deptFilter, sessionFilter, nameSearch, dateFrom, dateTo]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalAmount = filtered.reduce((s, r) => s + (r.total_amount || 0), 0);
+  const uniqueStaff = new Set(filtered.map(r => r.staff_name)).size;
 
-  const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
-  const uniqueFaculty = new Set(filtered.map(e => e.facultyName)).size;
+  const clearFilters = () => {
+    setRoleFilter(""); setNameSearch(""); setDeptFilter(""); setSessionFilter("");
+    setDateFrom(undefined); setDateTo(undefined); setPage(1);
+  };
 
-  const clearFilters = () => { setYearFilter(""); setRoleFilter(""); setNameSearch(""); setPage(1); };
+  const exportFiltered = (label: string) => {
+    const wb = XLSX.utils.book_new();
+    const rows: (string | number)[][] = [
+      ["KLE TECHNOLOGICAL UNIVERSITY — EXAM HISTORY REPORT"],
+      [`Filter: ${label}`],
+      [],
+      ["Staff Name", "Role", "Department", "Exam Date", "Semester", "Session", "Course Code", "Course Name", "Students/Batches", "Amount (₹)", "Account No", "PAN"],
+    ];
+    let total = 0;
+    for (const r of filtered) {
+      rows.push([
+        r.staff_name, r.role, r.department, r.exam_date || "", r.semester || "",
+        r.exam_session || "", r.course_code || "", r.course_name || "",
+        r.total_students_or_batches || 0, r.total_amount, r.account_no || "", r.pan || "",
+      ]);
+      total += r.total_amount || 0;
+    }
+    rows.push([]);
+    rows.push(["", "", "", "", "", "", "", "", "TOTAL:", total, "", ""]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "History");
+    XLSX.writeFile(wb, `KLE_History_${label.replace(/\s+/g, "_")}.xlsx`);
+  };
+
+  const hasActiveFilters = roleFilter || deptFilter || sessionFilter || nameSearch || dateFrom || dateTo;
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -61,47 +142,86 @@ export default function StepHistory() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-primary">Exam History</h2>
-        <p className="text-muted-foreground text-sm mt-1">View and download past examination records</p>
+        <p className="text-muted-foreground text-sm mt-1">View, filter, and download examination records from database</p>
       </div>
 
       {error && <Card className="bg-destructive/10 border-destructive/30"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{filtered.length}</div><div className="text-xs text-muted-foreground">Total Exams</div></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{filtered.length}</div><div className="text-xs text-muted-foreground">Total Records</div></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">₹{totalAmount.toLocaleString("en-IN")}</div><div className="text-xs text-muted-foreground">Total Amount</div></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{uniqueFaculty}</div><div className="text-xs text-muted-foreground">Unique Faculty</div></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><div className="text-2xl font-bold text-primary">{uniqueStaff}</div><div className="text-xs text-muted-foreground">Unique Staff</div></CardContent></Card>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4 flex flex-wrap gap-3 items-end">
-          <div className="w-36">
-            <label className="text-xs font-medium mb-1 block">Year</label>
-            <Select value={yearFilter} onValueChange={v => { setYearFilter(v); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="All years" /></SelectTrigger>
-              <SelectContent>
-                {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-36">
-            <label className="text-xs font-medium mb-1 block">Role</label>
-            <Select value={roleFilter} onValueChange={v => { setRoleFilter(v); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="All roles" /></SelectTrigger>
-              <SelectContent>
-                {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-xs font-medium mb-1 block">Search Faculty</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input value={nameSearch} onChange={e => { setNameSearch(e.target.value); setPage(1); }} placeholder="Faculty name..." className="pl-10" />
+        <CardContent className="p-4 space-y-3">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="w-36">
+              <label className="text-xs font-medium mb-1 block">Role</label>
+              <Select value={roleFilter} onValueChange={v => { setRoleFilter(v); setPage(1); }}>
+                <SelectTrigger><SelectValue placeholder="All roles" /></SelectTrigger>
+                <SelectContent>{roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="w-36">
+              <label className="text-xs font-medium mb-1 block">Department</label>
+              <Select value={deptFilter} onValueChange={v => { setDeptFilter(v); setPage(1); }}>
+                <SelectTrigger><SelectValue placeholder="All depts" /></SelectTrigger>
+                <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="w-40">
+              <label className="text-xs font-medium mb-1 block">Exam Session</label>
+              <Select value={sessionFilter} onValueChange={v => { setSessionFilter(v); setPage(1); }}>
+                <SelectTrigger><SelectValue placeholder="All sessions" /></SelectTrigger>
+                <SelectContent>{sessions.map(s => <SelectItem key={s!} value={s!}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <label className="text-xs font-medium mb-1 block">Search Staff</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input value={nameSearch} onChange={e => { setNameSearch(e.target.value); setPage(1); }} placeholder="Staff name..." className="pl-10" />
+              </div>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={clearFilters}><X className="h-3 w-3 mr-1" /> Clear</Button>
+
+          {/* Date range */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="text-xs font-medium mb-1 block">Date From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-36 justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={d => { setDateFrom(d); setPage(1); }} initialFocus className="pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">Date To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-36 justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {dateTo ? format(dateTo, "dd/MM/yyyy") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={d => { setDateTo(d); setPage(1); }} initialFocus className="pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="outline" size="sm" onClick={clearFilters}><X className="h-3 w-3 mr-1" /> Clear All</Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -111,31 +231,29 @@ export default function StepHistory() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Faculty</TableHead>
+                <TableHead>Staff Name</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Dept</TableHead>
+                <TableHead>Exam Date</TableHead>
                 <TableHead>Semester</TableHead>
-                <TableHead>Code</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead className="text-right">Students</TableHead>
-                <TableHead className="text-right">Batches</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paged.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No records found</TableCell></TableRow>
-              ) : paged.map((e, i) => (
-                <TableRow key={i}>
-                  <TableCell>{e.examDate}</TableCell>
-                  <TableCell>{e.facultyName}</TableCell>
-                  <TableCell>{e.role}</TableCell>
-                  <TableCell>{e.semesterType}-{e.semesterNo}</TableCell>
-                  <TableCell className="font-mono text-xs">{e.courseCode}</TableCell>
-                  <TableCell>{e.courseName}</TableCell>
-                  <TableCell className="text-right">{e.studentsPerBatch}</TableCell>
-                  <TableCell className="text-right">{e.batches}</TableCell>
-                  <TableCell className="text-right font-semibold">₹{e.amount.toLocaleString("en-IN")}</TableCell>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No records found</TableCell></TableRow>
+              ) : paged.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.staff_name}</TableCell>
+                  <TableCell>{r.role}</TableCell>
+                  <TableCell>{r.department}</TableCell>
+                  <TableCell>{r.exam_date || "—"}</TableCell>
+                  <TableCell>{r.semester || "—"}</TableCell>
+                  <TableCell className="text-xs">{r.course_code} {r.course_name ? `— ${r.course_name}` : ""}</TableCell>
+                  <TableCell className="text-right">{r.total_students_or_batches || "—"}</TableCell>
+                  <TableCell className="text-right font-semibold">₹{(r.total_amount || 0).toLocaleString("en-IN")}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -153,12 +271,19 @@ export default function StepHistory() {
       )}
 
       {/* Downloads */}
-      <div className="flex gap-3 justify-end">
-        <Button variant="outline" onClick={() => exportHistoryExcel(filtered, `Year Report ${yearFilter || "All"}`, `KLE_Year_Report_${yearFilter || "All"}.xlsx`)}>
-          <Download className="h-4 w-4 mr-1" /> Download Year Report
-        </Button>
-        <Button onClick={() => exportHistoryExcel(entries, "Full History", "KLE_Full_History.xlsx")}>
-          <Download className="h-4 w-4 mr-1" /> Download Full History
+      <div className="flex gap-3 justify-end flex-wrap">
+        {sessionFilter && (
+          <Button variant="outline" onClick={() => exportFiltered(`Session_${sessionFilter}`)}>
+            <Download className="h-4 w-4 mr-1" /> Download {sessionFilter}
+          </Button>
+        )}
+        {hasActiveFilters && (
+          <Button variant="outline" onClick={() => exportFiltered("Custom_Filter")}>
+            <Download className="h-4 w-4 mr-1" /> Download Filtered ({filtered.length})
+          </Button>
+        )}
+        <Button onClick={() => exportFiltered("All_History")}>
+          <Download className="h-4 w-4 mr-1" /> Download All History
         </Button>
       </div>
     </div>

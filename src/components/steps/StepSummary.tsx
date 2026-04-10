@@ -1,17 +1,20 @@
+import { useState } from "react";
 import { useAppState } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exportSessionExcel } from "@/lib/excel-export";
-import { writeExamLog } from "@/lib/sheets-api";
 import { ROLE_CONFIG } from "@/types/faculty";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, RotateCcw } from "lucide-react";
+import { Download, RotateCcw, Save, Loader2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
 export default function StepSummary() {
   const state = useAppState();
   const session = state.getSessionData();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   if (!session) {
     return (
@@ -24,41 +27,49 @@ export default function StepSummary() {
 
   const cfg = ROLE_CONFIG[session.role];
 
-  const handleDownload = async () => {
-    exportSessionExcel(session);
+  const handleSaveToDB = async () => {
+    setSaving(true);
+    try {
+      const records = session.subjects.map((sub, idx) => ({
+        sl_no: idx + 1,
+        department: "ECE",
+        semester: `${session.semesterType}-${session.semesterNo}`,
+        exam_date: format(session.examDate, "dd/MM/yyyy"),
+        course_code: sub.courseCode,
+        course_name: sub.courseName,
+        role: session.role,
+        staff_name: session.faculty.name,
+        total_students_or_batches: sub.studentsPerBatch * sub.batches,
+        qp_remn_per_batch: cfg?.ratePerStudent || 0,
+        remn_per_batch: cfg?.fixedCharge || 0,
+        total_amount: sub.amount,
+        account_no: session.faculty.accountNo || null,
+        pan: session.faculty.pan || null,
+        exam_session: `${format(session.examDate, "MMM yyyy").toUpperCase()}`,
+      }));
 
-    // Write to ExamLog
-    const rows = session.subjects.map(sub => [
-      new Date().toISOString(),
-      session.faculty.name,
-      session.role,
-      session.faculty.accountNo,
-      session.faculty.pan,
-      session.faculty.aadhaar,
-      format(session.examDate, "dd/MM/yyyy"),
-      session.semesterType,
-      String(session.semesterNo),
-      sub.courseCode,
-      sub.courseName,
-      String(sub.studentsPerBatch),
-      String(sub.batches),
-      String(sub.amount),
-      String(session.grandTotal),
-    ]);
+      const { error } = await supabase.from("remuneration_records").insert(records);
+      if (error) throw error;
 
-    const ok = await writeExamLog(rows);
-    if (ok) {
-      toast.success("Session saved to records");
-    } else {
-      toast.warning("Could not save to log — download Excel as backup");
+      setSaved(true);
+      toast.success(`${records.length} record(s) saved to database`);
+    } catch (err: any) {
+      toast.error("Failed to save: " + (err.message || "Unknown error"));
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleDownload = () => {
+    exportSessionExcel(session);
+    toast.success("Excel file downloaded");
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-primary">Summary & Download</h2>
-        <p className="text-muted-foreground text-sm mt-1">Review and export the remuneration details</p>
+        <p className="text-muted-foreground text-sm mt-1">Review, save to database, and export</p>
       </div>
 
       <Card>
@@ -67,10 +78,9 @@ export default function StepSummary() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-y-2 text-sm">
           <div><span className="text-muted-foreground">Name:</span> {session.faculty.name}</div>
-          <div><span className="text-muted-foreground">Role:</span> {cfg.icon} {session.role}</div>
-          <div><span className="text-muted-foreground">Account No:</span> {session.faculty.accountNo}</div>
-          <div><span className="text-muted-foreground">PAN:</span> {session.faculty.pan}</div>
-          <div><span className="text-muted-foreground">Aadhaar:</span> {session.faculty.aadhaar}</div>
+          <div><span className="text-muted-foreground">Role:</span> {cfg?.icon} {session.role}</div>
+          <div><span className="text-muted-foreground">Account No:</span> {session.faculty.accountNo || "—"}</div>
+          <div><span className="text-muted-foreground">PAN:</span> {session.faculty.pan || "—"}</div>
           <div><span className="text-muted-foreground">Exam Date:</span> {format(session.examDate, "dd/MM/yyyy")}</div>
           <div><span className="text-muted-foreground">Semester:</span> {session.semesterType} - {session.semesterNo}</div>
         </CardContent>
@@ -110,11 +120,15 @@ export default function StepSummary() {
         </CardContent>
       </Card>
 
-      <div className="flex gap-3 justify-between">
+      <div className="flex gap-3 justify-between flex-wrap">
         <Button variant="outline" onClick={() => state.setCurrentStep(4)}>← Back</Button>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Button variant="outline" onClick={state.resetSession}>
             <RotateCcw className="h-4 w-4 mr-1" /> New Session
+          </Button>
+          <Button variant="secondary" onClick={handleSaveToDB} disabled={saving || saved}>
+            {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : saved ? <CheckCircle2 className="h-4 w-4 mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+            {saved ? "Saved to DB" : "Save to Database"}
           </Button>
           <Button onClick={handleDownload}>
             <Download className="h-4 w-4 mr-1" /> Download Excel
