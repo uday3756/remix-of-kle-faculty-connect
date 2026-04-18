@@ -262,20 +262,10 @@ export default function StepHistory() {
         </div>
       )}
 
-      {/* Downloads */}
-      <div className="flex gap-3 justify-end flex-wrap">
-        {sessionFilter && (
-          <Button variant="outline" onClick={() => exportFiltered(`Session_${sessionFilter}`)}>
-            <Download className="h-4 w-4 mr-1" /> Download {sessionFilter}
-          </Button>
-        )}
-        {hasActiveFilters && (
-          <Button variant="outline" onClick={() => exportFiltered("Custom_Filter")}>
-            <Download className="h-4 w-4 mr-1" /> Download Filtered ({filtered.length})
-          </Button>
-        )}
-        <Button onClick={() => exportFiltered("All_History")}>
-          <Download className="h-4 w-4 mr-1" /> Download All History
+      {/* Download */}
+      <div className="flex justify-end">
+        <Button onClick={() => exportFiltered(hasActiveFilters ? (sessionFilter ? `Session_${sessionFilter}` : "Filtered") : "All_History")}>
+          <Download className="h-4 w-4 mr-1" /> Download ({filtered.length})
         </Button>
       </div>
     </div>
