@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
-import { Download, Loader2, Search, X, CalendarIcon } from "lucide-react";
+import { Download, Loader2, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -178,13 +177,6 @@ export default function StepHistory() {
                 <SelectContent>{sessions.map(s => <SelectItem key={s!} value={s!}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[180px]">
-              <label className="text-xs font-medium mb-1 block">Search Staff</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input value={nameSearch} onChange={e => { setNameSearch(e.target.value); setPage(1); }} placeholder="Staff name..." className="pl-10" />
-              </div>
-            </div>
           </div>
 
           {/* Date range */}
@@ -269,20 +261,10 @@ export default function StepHistory() {
         </div>
       )}
 
-      {/* Downloads */}
-      <div className="flex gap-3 justify-end flex-wrap">
-        {sessionFilter && (
-          <Button variant="outline" onClick={() => exportFiltered(`Session_${sessionFilter}`)}>
-            <Download className="h-4 w-4 mr-1" /> Download {sessionFilter}
-          </Button>
-        )}
-        {hasActiveFilters && (
-          <Button variant="outline" onClick={() => exportFiltered("Custom_Filter")}>
-            <Download className="h-4 w-4 mr-1" /> Download Filtered ({filtered.length})
-          </Button>
-        )}
-        <Button onClick={() => exportFiltered("All_History")}>
-          <Download className="h-4 w-4 mr-1" /> Download All History
+      {/* Download */}
+      <div className="flex justify-end">
+        <Button onClick={() => exportFiltered(hasActiveFilters ? (sessionFilter ? `Session_${sessionFilter}` : "Filtered") : "All_History")}>
+          <Download className="h-4 w-4 mr-1" /> Download ({filtered.length})
         </Button>
       </div>
     </div>
