@@ -16,8 +16,8 @@ export interface TemplateRecord {
   account_no: string | null;
 }
 
-const HEADER_TITLE = "B. V. Bhoomaraddi College of Engineering & Technology, Hubli - 580 031";
-const SUBTITLE = "Department of {DEPT}";
+const HEADER_LINE_1 = "B. V. Bhoomaraddi College Campus, Vidyanagar, Hubballi - 580031. Karnataka (India)";
+const HEADER_LINE_2_TPL = "Remuneration paid towards Practical End Semester Assessement Examinations {SESSION} (BE REGULAR) (Consolidated Report)";
 
 export function exportTemplateExcel(records: TemplateRecord[], fileName: string, sessionLabel = "JAN 2026") {
   const wb = XLSX.utils.book_new();
@@ -37,13 +37,13 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
   for (const [dept, deptRecords] of byDept) {
     const rows: (string | number | null)[][] = [];
 
-    // Header rows
-    rows.push([HEADER_TITLE]);
-    rows.push([SUBTITLE.replace("{DEPT}", dept)]);
-    rows.push([`Lab Examination Remuneration - ${sessionLabel}`]);
+    // Row 1: blank (logo area in original template)
     rows.push([]);
-
-    // Column headers (matches uploaded template)
+    // Row 2: campus address line (merged across 12 cols)
+    rows.push([HEADER_LINE_1]);
+    // Row 3: title with session (merged across 12 cols)
+    rows.push([HEADER_LINE_2_TPL.replace("{SESSION}", sessionLabel)]);
+    // Row 4: column headers — column F (index 5) is the role label column
     rows.push([
       "SL. No.",
       "Sem.",
@@ -52,14 +52,12 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
       "Course",
       "",
       "Name of the Staff",
-      "Total No of Batches/Students",
+      "Total No of Batches OR Students",
       "QP Remn. Per Batch",
       "Remn. Per Batch",
-      "Total Amount in Rs.",
+      "Total Amount in Rs./-",
       "A/C NO.",
     ]);
-    // Sub-row: role label sits in column F (index 5) in template
-    // We'll place role inline per data row instead (col F)
 
     let total = 0;
     deptRecords.forEach((r, i) => {
@@ -69,7 +67,7 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
         r.exam_date ?? "",
         r.course_code ?? "",
         r.course_name ?? "",
-        r.role ?? "",
+        r.role ?? "",            // role label sits in column F (matches template)
         r.staff_name ?? "",
         r.total_students_or_batches ?? "",
         r.qp_remn_per_batch ?? "",
@@ -87,20 +85,19 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
     ws["!cols"] = [
       { wch: 7 },   // SL
       { wch: 6 },   // Sem
-      { wch: 22 },  // Exam Date
+      { wch: 24 },  // Exam Date
       { wch: 14 },  // Course Code
-      { wch: 28 },  // Course
-      { wch: 22 },  // Role
+      { wch: 30 },  // Course
+      { wch: 22 },  // Role (col F)
       { wch: 26 },  // Staff
-      { wch: 14 },  // Total batches
-      { wch: 12 },  // QP Remn
-      { wch: 12 },  // Remn
-      { wch: 14 },  // Amount
+      { wch: 18 },  // Total batches
+      { wch: 14 },  // QP Remn
+      { wch: 14 },  // Remn
+      { wch: 16 },  // Amount
       { wch: 18 },  // A/C
     ];
-    // Merge title rows across all 12 columns
+    // Merge title rows (row index 1 and 2) across all 12 cols
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
       { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
       { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
     ];
