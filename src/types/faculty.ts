@@ -54,13 +54,20 @@ export const ROLE_CONFIG: Record<RoleType, { icon: string; ratePerStudent: numbe
   External:   { icon: "🎓", ratePerStudent: 25, fixedCharge: 100, label: "External" },
 };
 
-export function calculateAmount(role: RoleType, students: number, batches: number): number {
-  const config = ROLE_CONFIG[role];
+// Default config used when a custom role (e.g. "HOD") has no entry in ROLE_CONFIG.
+const DEFAULT_ROLE_CONFIG = { icon: "👤", ratePerStudent: 15, fixedCharge: 50, label: "Custom" };
+
+function getRoleConfig(role: RoleType | string) {
+  return (ROLE_CONFIG as Record<string, typeof DEFAULT_ROLE_CONFIG>)[role as string] || DEFAULT_ROLE_CONFIG;
+}
+
+export function calculateAmount(role: RoleType | string, students: number, batches: number): number {
+  const config = getRoleConfig(role);
   return (students * batches * config.ratePerStudent) + config.fixedCharge;
 }
 
-export function getFormulaDisplay(role: RoleType, students: number, batches: number): string {
-  const config = ROLE_CONFIG[role];
+export function getFormulaDisplay(role: RoleType | string, students: number, batches: number): string {
+  const config = getRoleConfig(role);
   const amount = calculateAmount(role, students, batches);
   return `${students} × ${batches} × ${config.ratePerStudent} + ${config.fixedCharge} = ₹${amount.toLocaleString("en-IN")}`;
 }
