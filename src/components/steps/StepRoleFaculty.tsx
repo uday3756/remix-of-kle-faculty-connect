@@ -349,6 +349,26 @@ export default function StepRoleFaculty() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Role Confirmation */}
+      <Dialog open={!!deleteRoleConfirm} onOpenChange={() => !deletingRole && setDeleteRoleConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Role</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the role <span className="font-semibold">"{deleteRoleConfirm}"</span>?
+              This will permanently remove <span className="font-semibold">all faculty members and records</span> under this role from the database. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRoleConfirm(null)} disabled={deletingRole}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteRoleConfirm && handleDeleteRole(deleteRoleConfirm)} disabled={deletingRole}>
+              {deletingRole ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Delete Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
