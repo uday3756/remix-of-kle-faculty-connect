@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { RoleType, ROLE_CONFIG } from "@/types/faculty";
-import { RefreshCw, AlertTriangle, Loader2, Plus } from "lucide-react";
+import { RefreshCw, AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,6 +40,10 @@ export default function StepRoleFaculty() {
   const [showAddFaculty, setShowAddFaculty] = useState(false);
   const [newFaculty, setNewFaculty] = useState({ staff_name: "", account_no: "", pan: "", ifsc: "", bank_name: "" });
   const [addingFaculty, setAddingFaculty] = useState(false);
+
+  // Delete Role confirmation
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null);
+  const [deletingRole, setDeletingRole] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -136,6 +140,31 @@ export default function StepRoleFaculty() {
     }
   };
 
+  const handleDeleteRole = async (role: string) => {
+    setDeletingRole(true);
+    try {
+      const { error: err } = await supabase
+        .from("remuneration_records")
+        .delete()
+        .eq("role", role);
+      if (err) throw err;
+
+      // Update local state
+      setDbRoles(prev => prev.filter(r => r !== role));
+      setDbFaculty(prev => prev.filter(f => f.role !== role));
+      if (selectedRole === role) {
+        setSelectedRole(null as any);
+        setSelectedFaculty(null);
+      }
+      toast.success(`Role "${role}" and all associated faculty deleted`);
+    } catch (e: any) {
+      toast.error("Failed to delete role: " + (e.message || "Unknown error"));
+    } finally {
+      setDeletingRole(false);
+      setDeleteRoleConfirm(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -177,10 +206,18 @@ export default function StepRoleFaculty() {
                   key={role}
                   onClick={() => { setSelectedRole(role as RoleType); setSelectedFaculty(null); }}
                   className={cn(
-                    "cursor-pointer transition-all hover:shadow-md",
+                    "cursor-pointer transition-all hover:shadow-md relative group",
                     active ? "ring-2 ring-primary bg-primary/5 shadow-md" : "hover:bg-muted/50"
                   )}
                 >
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDeleteRoleConfirm(role); }}
+                    className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 text-destructive"
+                    title={`Delete role "${role}"`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl mb-1">{cfg?.icon || "👤"}</div>
                     <div className="font-semibold text-sm">{role}</div>
@@ -308,6 +345,26 @@ export default function StepRoleFaculty() {
             <Button onClick={handleAddFaculty} disabled={!newFaculty.staff_name.trim() || addingFaculty}>
               {addingFaculty ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Add Faculty
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Role Confirmation */}
+      <Dialog open={!!deleteRoleConfirm} onOpenChange={() => !deletingRole && setDeleteRoleConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Role</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the role <span className="font-semibold">"{deleteRoleConfirm}"</span>?
+              This will permanently remove <span className="font-semibold">all faculty members and records</span> under this role from the database. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteRoleConfirm(null)} disabled={deletingRole}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteRoleConfirm && handleDeleteRole(deleteRoleConfirm)} disabled={deletingRole}>
+              {deletingRole ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Delete Role
             </Button>
           </DialogFooter>
         </DialogContent>

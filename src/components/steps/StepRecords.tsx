@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, X, Loader2, Download, RefreshCw, Users, IndianRupee, Building2, ChevronLeft, ChevronRight } from "lucide-react";
-import { exportHistoryExcel } from "@/lib/excel-export";
+import { exportTemplateExcel } from "@/lib/template-export";
 
 interface RemunerationRecord {
   id: string;
@@ -162,14 +162,22 @@ export default function StepRecords() {
 
   const handleExport = () => {
     const exportData = filtered.map(r => ({
-      timestamp: "", facultyName: r.staff_name, role: r.role as any,
-      accountNo: r.account_no || "", pan: r.pan || "", aadhaar: "",
-      examDate: r.exam_date || "", semesterType: "Odd" as const, semesterNo: 0,
-      courseCode: r.course_code || "", courseName: r.course_name || "",
-      studentsPerBatch: r.total_students_or_batches || 0, batches: 0,
-      amount: r.total_amount, grandTotal: r.total_amount,
+      sl_no: r.sl_no,
+      department: r.department,
+      semester: r.semester,
+      exam_date: r.exam_date,
+      course_code: r.course_code,
+      course_name: r.course_name,
+      role: r.role,
+      staff_name: r.staff_name,
+      total_students_or_batches: r.total_students_or_batches,
+      qp_remn_per_batch: r.qp_remn_per_batch,
+      remn_per_batch: r.remn_per_batch,
+      total_amount: r.total_amount,
+      account_no: r.account_no,
     }));
-    exportHistoryExcel(exportData, "Remuneration Records", "KLE_Remuneration_Records.xlsx");
+    const session = filtered[0]?.exam_session || "JAN 2026";
+    exportTemplateExcel(exportData, `Remuneration_list_${session.replace(/\s+/g, "_")}.xlsx`, session);
     toast.success("Excel file downloaded");
   };
 
