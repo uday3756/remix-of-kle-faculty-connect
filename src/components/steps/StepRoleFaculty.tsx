@@ -206,10 +206,18 @@ export default function StepRoleFaculty() {
                   key={role}
                   onClick={() => { setSelectedRole(role as RoleType); setSelectedFaculty(null); }}
                   className={cn(
-                    "cursor-pointer transition-all hover:shadow-md",
+                    "cursor-pointer transition-all hover:shadow-md relative group",
                     active ? "ring-2 ring-primary bg-primary/5 shadow-md" : "hover:bg-muted/50"
                   )}
                 >
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDeleteRoleConfirm(role); }}
+                    className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 text-destructive"
+                    title={`Delete role "${role}"`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl mb-1">{cfg?.icon || "👤"}</div>
                     <div className="font-semibold text-sm">{role}</div>
