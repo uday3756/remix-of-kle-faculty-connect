@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { RoleType, ROLE_CONFIG } from "@/types/faculty";
-import { RefreshCw, AlertTriangle, Loader2, Plus } from "lucide-react";
+import { RefreshCw, AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,6 +40,10 @@ export default function StepRoleFaculty() {
   const [showAddFaculty, setShowAddFaculty] = useState(false);
   const [newFaculty, setNewFaculty] = useState({ staff_name: "", account_no: "", pan: "", ifsc: "", bank_name: "" });
   const [addingFaculty, setAddingFaculty] = useState(false);
+
+  // Delete Role confirmation
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null);
+  const [deletingRole, setDeletingRole] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -133,6 +137,31 @@ export default function StepRoleFaculty() {
       toast.error("Failed to add: " + (e.message || "Unknown error"));
     } finally {
       setAddingFaculty(false);
+    }
+  };
+
+  const handleDeleteRole = async (role: string) => {
+    setDeletingRole(true);
+    try {
+      const { error: err } = await supabase
+        .from("remuneration_records")
+        .delete()
+        .eq("role", role);
+      if (err) throw err;
+
+      // Update local state
+      setDbRoles(prev => prev.filter(r => r !== role));
+      setDbFaculty(prev => prev.filter(f => f.role !== role));
+      if (selectedRole === role) {
+        setSelectedRole(null as any);
+        setSelectedFaculty(null);
+      }
+      toast.success(`Role "${role}" and all associated faculty deleted`);
+    } catch (e: any) {
+      toast.error("Failed to delete role: " + (e.message || "Unknown error"));
+    } finally {
+      setDeletingRole(false);
+      setDeleteRoleConfirm(null);
     }
   };
 
