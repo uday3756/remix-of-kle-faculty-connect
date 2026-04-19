@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
-import * as XLSX from "xlsx";
+import { exportTemplateExcel, TemplateRecord } from "@/lib/template-export";
 import { Download, Loader2, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -109,28 +109,23 @@ export default function StepHistory() {
   };
 
   const exportFiltered = (label: string) => {
-    const wb = XLSX.utils.book_new();
-    const rows: (string | number)[][] = [
-      ["KLE TECHNOLOGICAL UNIVERSITY — EXAM HISTORY REPORT"],
-      [`Filter: ${label}`],
-      [],
-      ["Staff Name", "Role", "Department", "Exam Date", "Semester", "Session", "Course Code", "Course Name", "Students/Batches", "Amount (₹)", "Account No", "PAN"],
-    ];
-    let total = 0;
-    for (const r of filtered) {
-      rows.push([
-        r.staff_name, r.role, r.department, r.exam_date || "", r.semester || "",
-        r.exam_session || "", r.course_code || "", r.course_name || "",
-        r.total_students_or_batches || 0, r.total_amount, r.account_no || "", r.pan || "",
-      ]);
-      total += r.total_amount || 0;
-    }
-    rows.push([]);
-    rows.push(["", "", "", "", "", "", "", "", "TOTAL:", total, "", ""]);
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, ws, "History");
-    XLSX.writeFile(wb, `KLE_History_${label.replace(/\s+/g, "_")}.xlsx`);
+    const tplRecords: TemplateRecord[] = filtered.map((r, i) => ({
+      sl_no: i + 1,
+      department: r.department,
+      semester: r.semester,
+      exam_date: r.exam_date,
+      course_code: r.course_code,
+      course_name: r.course_name,
+      role: r.role,
+      staff_name: r.staff_name,
+      total_students_or_batches: r.total_students_or_batches,
+      qp_remn_per_batch: null,
+      remn_per_batch: null,
+      total_amount: r.total_amount || 0,
+      account_no: r.account_no,
+    }));
+    const sessionLabel = sessionFilter || "ALL SESSIONS";
+    exportTemplateExcel(tplRecords, `KLE_History_${label.replace(/\s+/g, "_")}.xlsx`, sessionLabel);
   };
 
   const hasActiveFilters = roleFilter || deptFilter || sessionFilter || nameSearch || dateFrom || dateTo;
