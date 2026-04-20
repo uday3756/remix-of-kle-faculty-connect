@@ -7,7 +7,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { exportTemplateExcel, TemplateRecord } from "@/lib/template-export";
-import { Download, Loader2, X, CalendarIcon } from "lucide-react";
+import { exportConsolidatedReport } from "@/lib/consolidated-report";
+import { Download, Loader2, X, CalendarIcon, FileSpreadsheet } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -257,7 +258,10 @@ export default function StepHistory() {
       )}
 
       {/* Download */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={() => exportConsolidatedReport(filtered, `KLE_Consolidated_${sessionFilter || "All"}.xlsx`, sessionFilter || "JAN 2026")}>
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Consolidated Report
+        </Button>
         <Button onClick={() => exportFiltered(hasActiveFilters ? (sessionFilter ? `Session_${sessionFilter}` : "Filtered") : "All_History")}>
           <Download className="h-4 w-4 mr-1" /> Download ({filtered.length})
         </Button>
