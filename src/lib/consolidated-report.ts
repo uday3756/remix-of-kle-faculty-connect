@@ -16,7 +16,8 @@ export function exportConsolidatedReport(records: any[], fileName: string, sessi
   // Group records by staff_name
   const grouped = new Map<string, ConsolidatedRecord>();
   for (const r of records) {
-    const name = r.staff_name;
+    const name = (r.staff_name || "").trim();
+    if (!name) continue;
     if (!grouped.has(name)) {
       grouped.set(name, {
         staff_name: name,

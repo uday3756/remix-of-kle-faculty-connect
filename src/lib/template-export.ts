@@ -25,7 +25,7 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
   // Group records by department -> one sheet per dept
   const byDept = new Map<string, TemplateRecord[]>();
   for (const r of records) {
-    const dept = r.department || "General";
+    const dept = (r.department || "General").trim();
     if (!byDept.has(dept)) byDept.set(dept, []);
     byDept.get(dept)!.push(r);
   }

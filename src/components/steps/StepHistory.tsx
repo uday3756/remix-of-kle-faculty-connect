@@ -39,6 +39,7 @@ export default function StepHistory() {
   const [nameSearch, setNameSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
   const [sessionFilter, setSessionFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [page, setPage] = useState(1);
@@ -75,6 +76,7 @@ export default function StepHistory() {
   const roles = useMemo(() => [...new Set(records.map(r => r.role).filter(Boolean))].sort(), [records]);
   const departments = useMemo(() => [...new Set(records.map(r => r.department).filter(Boolean))].sort(), [records]);
   const sessions = useMemo(() => [...new Set(records.map(r => r.exam_session).filter(Boolean))].sort(), [records]);
+  const semesters = useMemo(() => [...new Set(records.map(r => r.semester).filter(Boolean))].sort(), [records]);
 
   const parseExamDate = (dateStr: string | null): Date | null => {
     if (!dateStr) return null;
@@ -88,6 +90,7 @@ export default function StepHistory() {
       if (roleFilter && r.role !== roleFilter) return false;
       if (deptFilter && r.department !== deptFilter) return false;
       if (sessionFilter && r.exam_session !== sessionFilter) return false;
+      if (semesterFilter && r.semester !== semesterFilter) return false;
       if (nameSearch && !r.staff_name.toLowerCase().includes(nameSearch.toLowerCase())) return false;
       if (dateFrom || dateTo) {
         const d = parseExamDate(r.exam_date);
@@ -97,7 +100,7 @@ export default function StepHistory() {
       }
       return true;
     });
-  }, [records, roleFilter, deptFilter, sessionFilter, nameSearch, dateFrom, dateTo]);
+  }, [records, roleFilter, deptFilter, sessionFilter, semesterFilter, nameSearch, dateFrom, dateTo]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -106,6 +109,7 @@ export default function StepHistory() {
 
   const clearFilters = () => {
     setRoleFilter(""); setNameSearch(""); setDeptFilter(""); setSessionFilter("");
+    setSemesterFilter("");
     setDateFrom(undefined); setDateTo(undefined); setPage(1);
   };
 
@@ -129,7 +133,7 @@ export default function StepHistory() {
     exportTemplateExcel(tplRecords, `KLE_History_${label.replace(/\s+/g, "_")}.xlsx`, sessionLabel);
   };
 
-  const hasActiveFilters = roleFilter || deptFilter || sessionFilter || nameSearch || dateFrom || dateTo;
+  const hasActiveFilters = roleFilter || deptFilter || sessionFilter || semesterFilter || nameSearch || dateFrom || dateTo;
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -172,6 +176,30 @@ export default function StepHistory() {
                 <SelectTrigger><SelectValue placeholder="All sessions" /></SelectTrigger>
                 <SelectContent>{sessions.map(s => <SelectItem key={s!} value={s!}>{s}</SelectItem>)}</SelectContent>
               </Select>
+            </div>
+            <div className="w-32">
+              <label className="text-xs font-medium mb-1 block">Semester</label>
+              <Select value={semesterFilter} onValueChange={v => { setSemesterFilter(v); setPage(1); }}>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>{semesters.map(s => <SelectItem key={s!} value={s!}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-xs font-medium mb-1 block">Staff Name</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={nameSearch}
+                  onChange={e => { setNameSearch(e.target.value); setPage(1); }}
+                  placeholder="Search name..."
+                  className="w-full h-10 px-3 py-2 bg-background border rounded-md text-sm"
+                />
+                {nameSearch && (
+                  <button onClick={() => setNameSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
