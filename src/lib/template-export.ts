@@ -132,11 +132,19 @@ export async function exportTemplateExcel(records: TemplateRecord[], fileName: s
           r.total_amount ?? 0,
           r.account_no ?? "",
         ];
-        row.eachCell((cell) => {
+
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          // Columns A to E are 1 to 5
+          const isLeftCol = colNumber <= 5;
+          const isFirstInGroup = i === 0;
+          const isLastInGroup = i === groupSize - 1;
+
           cell.border = {
-            top: { style: "thin" },
+            // Remove top border if in a merged group and not the first row
+            top: (isLeftCol && !isFirstInGroup) ? undefined : { style: "thin" },
+            // Remove bottom border if in a merged group and not the last row
+            bottom: (isLeftCol && !isLastInGroup) ? undefined : { style: "thin" },
             left: { style: "thin" },
-            bottom: { style: "thin" },
             right: { style: "thin" }
           };
           cell.alignment = { vertical: "middle", horizontal: "center" };
