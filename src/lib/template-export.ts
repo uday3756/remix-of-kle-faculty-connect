@@ -43,40 +43,68 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
     rows.push([HEADER_LINE_1]);
     // Row 3: title with session (merged across 12 cols)
     rows.push([HEADER_LINE_2_TPL.replace("{SESSION}", sessionLabel)]);
-    // Row 4: column headers — column F (index 5) is the role label column
+    // Row 4: column headers
     rows.push([
       "SL. No.",
-      "Sem.",
-      "Exam Date",
+      "Semester",
+      "Date",
       "Course Code",
-      "Course",
-      "",
-      "Name of the Staff",
-      "Total No of Batches OR Students",
-      "QP Remn. Per Batch",
-      "Remn. Per Batch",
-      "Total Amount in Rs./-",
-      "A/C NO.",
+      "Subject",
+      "Role",
+      "Name",
+      "Code",
+      "Hours",
+      "Rate",
+      "Amount",
+      "Account Number",
     ]);
 
+    const courseGroups = new Map<string, TemplateRecord[]>();
+    for (const r of deptRecords) {
+      const groupKey = `${r.semester}|${r.exam_date}|${r.course_code}|${r.course_name}`;
+      if (!courseGroups.has(groupKey)) courseGroups.set(groupKey, []);
+      courseGroups.get(groupKey)!.push(r);
+    }
+
+    const merges: XLSX.Range[] = [
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
+    ];
+
     let total = 0;
-    deptRecords.forEach((r, i) => {
-      rows.push([
-        r.sl_no ?? i + 1,
-        r.semester ?? "",
-        r.exam_date ?? "",
-        r.course_code ?? "",
-        r.course_name ?? "",
-        r.role ?? "",            // role label sits in column F (matches template)
-        r.staff_name ?? "",
-        r.total_students_or_batches ?? "",
-        r.qp_remn_per_batch ?? "",
-        r.remn_per_batch ?? "",
-        r.total_amount ?? 0,
-        r.account_no ?? "",
-      ]);
-      total += Number(r.total_amount || 0);
-    });
+    let currentRow = 4; // Data starts at row 5 (0-indexed 4)
+    let slNo = 1;
+
+    for (const [_, groupRecords] of courseGroups) {
+      const groupSize = groupRecords.length;
+      
+      // Add merges for the group if it spans multiple rows
+      if (groupSize > 1) {
+        // Merge columns A to E (indices 0 to 4)
+        for (let c = 0; c <= 4; c++) {
+          merges.push({ s: { r: currentRow, c }, e: { r: currentRow + groupSize - 1, c } });
+        }
+      }
+
+      groupRecords.forEach((r, i) => {
+        rows.push([
+          i === 0 ? slNo++ : "",
+          i === 0 ? (r.semester ?? "") : "",
+          i === 0 ? (r.exam_date ?? "") : "",
+          i === 0 ? (r.course_code ?? "") : "",
+          i === 0 ? (r.course_name ?? "") : "",
+          r.role ?? "",
+          r.staff_name ?? "",
+          r.total_students_or_batches ?? "",
+          r.qp_remn_per_batch ?? "",
+          r.remn_per_batch ?? "",
+          r.total_amount ?? 0,
+          r.account_no ?? "",
+        ]);
+        total += Number(r.total_amount || 0);
+      });
+      currentRow += groupSize;
+    }
 
     rows.push([]);
     rows.push(["", "", "", "", "", "", "", "", "", "TOTAL", total, ""]);
@@ -84,25 +112,21 @@ export function exportTemplateExcel(records: TemplateRecord[], fileName: string,
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = [
       { wch: 7 },   // SL
-      { wch: 6 },   // Sem
-      { wch: 24 },  // Exam Date
+      { wch: 10 },  // Semester
+      { wch: 15 },  // Date
       { wch: 14 },  // Course Code
-      { wch: 30 },  // Course
-      { wch: 22 },  // Role (col F)
-      { wch: 26 },  // Staff
-      { wch: 18 },  // Total batches
-      { wch: 14 },  // QP Remn
-      { wch: 14 },  // Remn
+      { wch: 30 },  // Subject
+      { wch: 22 },  // Role
+      { wch: 26 },  // Name
+      { wch: 10 },  // Code
+      { wch: 10 },  // Hours
+      { wch: 10 },  // Rate
       { wch: 16 },  // Amount
-      { wch: 18 },  // A/C
+      { wch: 18 },  // Account Number
     ];
-    // Merge title rows (row index 1 and 2) across all 12 cols
-    ws["!merges"] = [
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
-    ];
+    ws["!merges"] = merges;
 
-    // Sanitize sheet name (max 31 chars, no special chars)
+    // Sanitize sheet name
     const safeName = dept.replace(/[\\/?*[\]:]/g, "_").slice(0, 31) || "Sheet";
     XLSX.utils.book_append_sheet(wb, ws, safeName);
   }
