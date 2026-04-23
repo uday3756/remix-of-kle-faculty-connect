@@ -80,9 +80,21 @@ export default function StepHistory() {
 
   const parseExamDate = (dateStr: string | null): Date | null => {
     if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length === 3) return new Date(+parts[2], +parts[1] - 1, +parts[0]);
-    return new Date(dateStr);
+    
+    // Support both DD/MM/YYYY and DD-MM-YYYY (or YYYY-MM-DD)
+    const parts = dateStr.split(/[\/\-]/);
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        return new Date(+parts[0], +parts[1] - 1, +parts[2]);
+      } else {
+        // DD-MM-YYYY or DD/MM/YYYY
+        return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+      }
+    }
+    
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
   };
 
   const filtered = useMemo(() => {
