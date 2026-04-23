@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportTemplateExcel, TemplateRecord } from "@/lib/template-export";
 import { exportConsolidatedReport } from "@/lib/consolidated-report";
 import { Download, Loader2, X, CalendarIcon, FileSpreadsheet } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfDay, isBefore, isAfter, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface HistoryRecord {
@@ -80,19 +80,19 @@ export default function StepHistory() {
 
   const parseExamDate = (dateStr: string | null): Date | null => {
     if (!dateStr) return null;
-    
-    // Support both DD/MM/YYYY and DD-MM-YYYY (or YYYY-MM-DD)
-    const parts = dateStr.split(/[\/\-]/);
+    const cleaned = dateStr.trim();
+    const parts = cleaned.split(/[\/\-\.]/);
     if (parts.length === 3) {
+      const p0 = parseInt(parts[0], 10);
+      const p1 = parseInt(parts[1], 10);
+      const p2 = parseInt(parts[2], 10);
       if (parts[0].length === 4) {
-        // YYYY-MM-DD
-        return new Date(+parts[0], +parts[1] - 1, +parts[2]);
+        return new Date(p0, p1 - 1, p2);
       } else {
-        // DD-MM-YYYY or DD/MM/YYYY
-        return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+        const year = p2 < 100 ? 2000 + p2 : p2;
+        return new Date(year, p1 - 1, p0);
       }
     }
-    
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? null : d;
   };
@@ -104,11 +104,14 @@ export default function StepHistory() {
       if (sessionFilter && r.exam_session !== sessionFilter) return false;
       if (semesterFilter && r.semester !== semesterFilter) return false;
       if (nameSearch && !r.staff_name.toLowerCase().includes(nameSearch.toLowerCase())) return false;
+      
       if (dateFrom || dateTo) {
         const d = parseExamDate(r.exam_date);
         if (!d) return false;
-        if (dateFrom && d < dateFrom) return false;
-        if (dateTo && d > dateTo) return false;
+        
+        const recordDate = startOfDay(d);
+        if (dateFrom && isBefore(recordDate, startOfDay(dateFrom))) return false;
+        if (dateTo && isAfter(recordDate, startOfDay(dateTo))) return false;
       }
       return true;
     });
