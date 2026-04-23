@@ -274,6 +274,7 @@ export default function StepHistory() {
                 <TableHead className="text-right">Students</TableHead>
                 <TableHead className="text-right">Batches</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead>PAN</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -290,6 +291,7 @@ export default function StepHistory() {
                   <TableCell className="text-right">{r.students_per_batch ?? r.total_students_or_batches ?? "—"}</TableCell>
                   <TableCell className="text-right">{r.num_batches || "—"}</TableCell>
                   <TableCell className="text-right font-semibold">₹{(r.total_amount || 0).toLocaleString("en-IN")}</TableCell>
+                  <TableCell className="text-xs font-mono">{r.pan || "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

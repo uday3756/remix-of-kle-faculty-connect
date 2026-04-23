@@ -30,23 +30,42 @@ export async function exportConsolidatedReport(records: any[], fileName: string,
   const logoData = await getLogoBase64();
   const sheet = workbook.addWorksheet("Consolidated Report");
 
-  // Group records by staff_name
+  // Helper to normalize names for better grouping (removes Dr., Smt., etc)
+  const normalizeName = (name: string) => {
+    return name.toLowerCase()
+      .replace(/^(dr|smt|sri|mr|mrs|ms)\.?\s+/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
   const grouped = new Map<string, ConsolidatedRecord>();
   for (const r of records) {
-    const name = (r.staff_name || "").trim();
-    if (!name) continue;
-    if (!grouped.has(name)) {
-      grouped.set(name, {
-        staff_name: name,
+    const rawName = (r.staff_name || "").trim();
+    if (!rawName) continue;
+    
+    // We group by normalized name but keep the most complete raw name
+    const groupKey = normalizeName(rawName);
+    
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        staff_name: rawName,
         total_amount: 0,
         account_no: r.account_no || "",
         pan: r.pan || "",
       });
     }
-    const entry = grouped.get(name)!;
+    
+    const entry = grouped.get(groupKey)!;
     entry.total_amount += Number(r.total_amount || 0);
+    
+    // Fill in missing details if this record has them
     if (!entry.account_no && r.account_no) entry.account_no = r.account_no;
     if (!entry.pan && r.pan) entry.pan = r.pan;
+    
+    // If current raw name is longer/more complete, use it
+    if (rawName.length > entry.staff_name.length) {
+      entry.staff_name = rawName;
+    }
   }
 
   const consolidatedList = Array.from(grouped.values()).sort((a, b) => a.staff_name.localeCompare(b.staff_name));
