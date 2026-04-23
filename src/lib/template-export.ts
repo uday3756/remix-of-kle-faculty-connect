@@ -9,6 +9,8 @@ export interface TemplateRecord {
   course_name: string | null;
   role: string;
   staff_name: string;
+  students_per_batch: number | null;
+  num_batches: number | null;
   total_students_or_batches: number | null;
   qp_remn_per_batch: number | null;
   remn_per_batch: number | null;
@@ -78,7 +80,7 @@ export async function exportTemplateExcel(records: TemplateRecord[], fileName: s
 
     // 3. Table Headers
     const headers = [
-      "SL. No.", "Semester", "Date", "Course Code", "Subject", "Role", "Name", "Code", "Hours", "Rate", "Amount", "Account Number"
+      "SL. No.", "Semester", "Date", "Course Code", "Subject", "Role", "Name", "Students/Batch", "No. of Batches", "Rate", "Amount", "Account Number"
     ];
     const headerRow = sheet.getRow(5);
     headerRow.values = headers;
@@ -126,8 +128,8 @@ export async function exportTemplateExcel(records: TemplateRecord[], fileName: s
           i === 0 ? (r.course_name ?? "") : "",
           r.role ?? "",
           r.staff_name ?? "",
-          r.total_students_or_batches ?? "",
-          r.qp_remn_per_batch ?? "",
+          r.students_per_batch ?? r.total_students_or_batches ?? "",
+          r.num_batches ?? "",
           r.remn_per_batch ?? "",
           r.total_amount ?? 0,
           r.account_no ?? "",
@@ -179,8 +181,8 @@ export async function exportTemplateExcel(records: TemplateRecord[], fileName: s
       { width: 30 }, // Subject
       { width: 22 }, // Role
       { width: 26 }, // Name
-      { width: 10 }, // Code
-      { width: 10 }, // Hours
+      { width: 14 }, // Students/Batch
+      { width: 14 }, // No. of Batches
       { width: 10 }, // Rate
       { width: 16 }, // Amount
       { width: 20 }, // A/C

@@ -22,6 +22,8 @@ interface RemunerationRecord {
   course_name: string | null;
   role: string;
   staff_name: string;
+  students_per_batch: number | null;
+  num_batches: number | null;
   total_students_or_batches: number | null;
   qp_remn_per_batch: number | null;
   remn_per_batch: number | null;
@@ -35,7 +37,8 @@ interface RemunerationRecord {
 
 const EMPTY_RECORD: Omit<RemunerationRecord, "id"> = {
   sl_no: null, department: "", semester: null, exam_date: null, course_code: null,
-  course_name: null, role: "", staff_name: "", total_students_or_batches: null,
+  course_name: null, role: "", staff_name: "", students_per_batch: null, num_batches: null,
+  total_students_or_batches: null,
   qp_remn_per_batch: null, remn_per_batch: null, total_amount: 0, account_no: null,
   pan: null, ifsc: null, bank_name: null, exam_session: "JAN 2026",
 };
@@ -170,6 +173,8 @@ export default function StepRecords() {
       course_name: r.course_name,
       role: r.role,
       staff_name: r.staff_name,
+      students_per_batch: r.students_per_batch,
+      num_batches: r.num_batches,
       total_students_or_batches: r.total_students_or_batches,
       qp_remn_per_batch: r.qp_remn_per_batch,
       remn_per_batch: r.remn_per_batch,
@@ -292,6 +297,7 @@ export default function StepRecords() {
                   <TableHead className="font-semibold">Course</TableHead>
                   <TableHead className="font-semibold text-center">Sem</TableHead>
                   <TableHead className="font-semibold text-right">Students</TableHead>
+                  <TableHead className="font-semibold text-right">Batches</TableHead>
                   <TableHead className="font-semibold text-right">Amount (₹)</TableHead>
                   <TableHead className="font-semibold">Account No.</TableHead>
                   <TableHead className="w-24 font-semibold text-center">Actions</TableHead>
@@ -331,7 +337,8 @@ export default function StepRecords() {
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-center text-xs">{r.semester || "—"}</TableCell>
-                    <TableCell className="text-right text-xs">{r.total_students_or_batches ?? "—"}</TableCell>
+                    <TableCell className="text-right text-xs">{r.students_per_batch ?? r.total_students_or_batches ?? "—"}</TableCell>
+                    <TableCell className="text-right text-xs">{r.num_batches || "—"}</TableCell>
                     <TableCell className="text-right font-semibold text-sm">
                       ₹{(r.total_amount || 0).toLocaleString("en-IN")}
                     </TableCell>
@@ -447,8 +454,11 @@ export default function StepRecords() {
                 <IndianRupee className="h-4 w-4" /> Financial Details
               </h4>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Total Students/Batches">
-                  <Input type="number" value={formData.total_students_or_batches ?? ""} onChange={e => setFormData(f => ({ ...f, total_students_or_batches: e.target.value ? Number(e.target.value) : null }))} />
+                <FormField label="Students per Batch">
+                  <Input type="number" value={formData.students_per_batch ?? ""} onChange={e => setFormData(f => ({ ...f, students_per_batch: e.target.value ? Number(e.target.value) : null }))} />
+                </FormField>
+                <FormField label="No. of Batches">
+                  <Input type="number" value={formData.num_batches ?? ""} onChange={e => setFormData(f => ({ ...f, num_batches: e.target.value ? Number(e.target.value) : null }))} />
                 </FormField>
                 <FormField label="QP Remn. Per Batch">
                   <Input type="number" value={formData.qp_remn_per_batch ?? ""} onChange={e => setFormData(f => ({ ...f, qp_remn_per_batch: e.target.value ? Number(e.target.value) : null }))} />

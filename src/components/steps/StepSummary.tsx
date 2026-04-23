@@ -39,6 +39,8 @@ export default function StepSummary() {
         course_name: sub.courseName,
         role: session.role,
         staff_name: session.faculty.name,
+        students_per_batch: sub.studentsPerBatch,
+        num_batches: sub.batches,
         total_students_or_batches: sub.studentsPerBatch * sub.batches,
         qp_remn_per_batch: cfg?.ratePerStudent || 0,
         remn_per_batch: cfg?.fixedCharge || 0,

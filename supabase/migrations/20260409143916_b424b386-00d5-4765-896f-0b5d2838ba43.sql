@@ -11,6 +11,8 @@ CREATE TABLE public.remuneration_records (
   role TEXT NOT NULL DEFAULT '',
   staff_name TEXT NOT NULL DEFAULT '',
   total_students_or_batches NUMERIC,
+  students_per_batch NUMERIC,
+  num_batches NUMERIC,
   qp_remn_per_batch NUMERIC,
   remn_per_batch NUMERIC,
   total_amount NUMERIC NOT NULL DEFAULT 0,
@@ -70,3 +72,14 @@ EXECUTE FUNCTION public.update_updated_at_column();
 CREATE INDEX idx_remuneration_staff_name ON public.remuneration_records USING gin(to_tsvector('english', staff_name));
 CREATE INDEX idx_remuneration_department ON public.remuneration_records(department);
 CREATE INDEX idx_remuneration_role ON public.remuneration_records(role);
+
+-- Add new columns if table already exists
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='remuneration_records' AND column_name='students_per_batch') THEN
+    ALTER TABLE public.remuneration_records ADD COLUMN students_per_batch NUMERIC;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='remuneration_records' AND column_name='num_batches') THEN
+    ALTER TABLE public.remuneration_records ADD COLUMN num_batches NUMERIC;
+  END IF;
+END $$;

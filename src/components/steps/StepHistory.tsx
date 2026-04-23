@@ -21,6 +21,8 @@ interface HistoryRecord {
   semester: string | null;
   course_code: string | null;
   course_name: string | null;
+  students_per_batch: number | null;
+  num_batches: number | null;
   total_students_or_batches: number | null;
   total_amount: number;
   account_no: string | null;
@@ -55,7 +57,7 @@ export default function StepHistory() {
       while (true) {
         const { data, error: err } = await supabase
           .from("remuneration_records")
-          .select("id, staff_name, role, department, exam_date, semester, course_code, course_name, total_students_or_batches, total_amount, account_no, pan, exam_session, created_at")
+          .select("id, staff_name, role, department, exam_date, semester, course_code, course_name, students_per_batch, num_batches, total_students_or_batches, total_amount, account_no, pan, exam_session, created_at")
           .order("created_at", { ascending: false })
           .range(from, from + batchSize - 1);
         if (err) throw err;
@@ -138,6 +140,8 @@ export default function StepHistory() {
       course_name: r.course_name,
       role: r.role,
       staff_name: r.staff_name,
+      students_per_batch: r.students_per_batch,
+      num_batches: r.num_batches,
       total_students_or_batches: r.total_students_or_batches,
       qp_remn_per_batch: null,
       remn_per_batch: null,
@@ -268,6 +272,7 @@ export default function StepHistory() {
                 <TableHead>Semester</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead className="text-right">Students</TableHead>
+                <TableHead className="text-right">Batches</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
               </TableRow>
             </TableHeader>
@@ -282,7 +287,8 @@ export default function StepHistory() {
                   <TableCell>{r.exam_date || "—"}</TableCell>
                   <TableCell>{r.semester || "—"}</TableCell>
                   <TableCell className="text-xs">{r.course_code} {r.course_name ? `— ${r.course_name}` : ""}</TableCell>
-                  <TableCell className="text-right">{r.total_students_or_batches || "—"}</TableCell>
+                  <TableCell className="text-right">{r.students_per_batch ?? r.total_students_or_batches ?? "—"}</TableCell>
+                  <TableCell className="text-right">{r.num_batches || "—"}</TableCell>
                   <TableCell className="text-right font-semibold">₹{(r.total_amount || 0).toLocaleString("en-IN")}</TableCell>
                 </TableRow>
               ))}
